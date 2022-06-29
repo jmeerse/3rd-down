@@ -1,0 +1,61 @@
+---
+title: "3rd_down"
+output: html_document
+date: '2022-06-29'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(nflfastR)
+library(nflreadr)
+library(tidyverse)
+library(ggimage)
+
+options(scipen = 999)
+
+```
+
+```{r data and cleaning}
+pbp <- load_pbp(2018:2021)
+
+pbp <- pbp[!is.na(pbp$yards_gained), ]
+pbp <- pbp[!is.na(pbp$down), ]
+
+runpass <- pbp %>% filter(play_type == "run" | play_type == "pass")
+
+
+ave_run <- pbp %>% group_by(posteam, down) %>% 
+  filter(play_type == "run") %>% 
+  summarise(averun = mean(yards_gained, na.rm = TRUE)) %>% 
+  ungroup()
+
+runpass %>% filter(play_type == "run") %>% 
+  ggplot(aes(x = yards_gained, y = down, group = down)) + 
+  geom_boxplot()
+
+ave_pass <- pbp %>% group_by(posteam, down) %>% 
+  filter(play_type == "pass") %>% 
+  summarise(avepass = mean(yards_gained, na.rm = TRUE)) %>% 
+  ungroup()
+
+avs <- left_join(ave_pass, ave_run, by = c("posteam", "down"))
+
+avs <- left_join(avs, teams_colors_logos, by = c("posteam" = "team_abbr") )
+
+
+
+
+
+
+```
+
+graphs
+
+```{r graphs}
+
+avs %>% ggplot(aes(averun, avepass)) +
+  geom_hline(yintercept = mean(pbp[pbp$play_type == 'run', 'yards_gained'], na.rm = TRUE)) +
+  geom_image(aes(image = team_logo_espn), size = 0.05, alpha = 0.07)
+
+```
+
