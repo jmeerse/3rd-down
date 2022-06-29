@@ -23,6 +23,7 @@ pbp <- pbp[!is.na(pbp$down), ]
 
 runpass <- pbp %>% filter(play_type == "run" | play_type == "pass")
 
+remove(pbp) 
 
 ave_run <- pbp %>% group_by(posteam, down) %>% 
   filter(play_type == "run") %>% 
