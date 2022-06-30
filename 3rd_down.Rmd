@@ -25,23 +25,25 @@ runpass <- pbp %>% filter(play_type == "run" | play_type == "pass")
 
 remove(pbp) 
 
-ave_run <- pbp %>% group_by(posteam, down) %>% 
+ave_run <- runpass %>% group_by(posteam, down) %>% 
   filter(play_type == "run") %>% 
-  summarise(averun = mean(yards_gained, na.rm = TRUE)) %>% 
+  summarise(averun = mean(yards_gained, na.rm = TRUE),
+            n_run = n()) %>% 
   ungroup()
 
-runpass %>% filter(play_type == "run") %>% 
-  ggplot(aes(x = yards_gained, y = down, group = down)) + 
-  geom_boxplot()
-
-ave_pass <- pbp %>% group_by(posteam, down) %>% 
+ave_pass <- runpass %>% group_by(posteam, down) %>% 
   filter(play_type == "pass") %>% 
-  summarise(avepass = mean(yards_gained, na.rm = TRUE)) %>% 
+  summarise(avepass = mean(yards_gained, na.rm = TRUE),
+            n_pass = n()) %>% 
   ungroup()
 
 avs <- left_join(ave_pass, ave_run, by = c("posteam", "down"))
 
 avs <- left_join(avs, teams_colors_logos, by = c("posteam" = "team_abbr") )
+
+runpass %>% filter(play_type == "run") %>% 
+  ggplot(aes(x = yards_gained, y = down, group = down)) + 
+  geom_boxplot()
 
 
 
