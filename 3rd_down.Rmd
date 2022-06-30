@@ -41,9 +41,6 @@ avs <- left_join(ave_pass, ave_run, by = c("posteam", "down"))
 
 avs <- left_join(avs, teams_colors_logos, by = c("posteam" = "team_abbr") )
 
-runpass %>% filter(play_type == "run") %>% 
-  ggplot(aes(x = yards_gained, y = down, group = down)) + 
-  geom_boxplot()
 
 
 
@@ -55,10 +52,32 @@ runpass %>% filter(play_type == "run") %>%
 graphs
 
 ```{r graphs}
+library(hrbrthemes) #gives lots of font error/warnings
 
-avs %>% ggplot(aes(averun, avepass)) +
-  geom_hline(yintercept = mean(pbp[pbp$play_type == 'run', 'yards_gained'], na.rm = TRUE)) +
-  geom_image(aes(image = team_logo_espn), size = 0.05, alpha = 0.07)
+runpass %>% filter(play_type == "run") %>% 
+  ggplot(aes(x = yards_gained, y = down, group = down)) + 
+  geom_boxplot() #boxplot of runs by downs
 
+runpass %>% filter(play_type == "pass") %>% 
+  ggplot(aes(x = yards_gained, y = as.factor(down))) + 
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom="point", color = "red") +
+  labs(title = "Ave Passing Yards by Down") #boxplot of runs by downs
+
+
+avs %>% ggplot(aes(x = averun, y = avepass, shape = as.factor(down), color = as.factor(down))) +
+  geom_point() + theme_light() #dotplot, shape and color by down
+
+
+
+avs %>% ggplot(aes(x = averun, y = avepass)) +
+  geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
+  geom_abline(slope = 1, intercept = 0) +
+  facet_wrap(~ down)
+
+avs %>% ggplot(aes(x = averun, y = avepass)) +
+  geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
+  geom_abline(slope = 1, intercept = 0) +
+  facet_wrap(~ down)
 ```
 
