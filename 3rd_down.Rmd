@@ -81,3 +81,19 @@ avs %>% ggplot(aes(x = averun, y = avepass)) +
   facet_wrap(~ down)
 ```
 
+```{r summary stats}
+runpass %>% group_by(play_type) %>% summarise(mean = mean(yards_gained), n = n()) #ave yds gained by play type
+
+#epa by play type
+eparp <- runpass %>% 
+  group_by(play_type, down) %>% 
+  summarise(mean_epa = mean(epa, na.rm = TRUE), 
+            success = mean(series_success, na.rm = TRUE), 
+            meanyds = mean(yards_gained, na.rm = TRUE),
+            meantogo = mean(ydstogo, na.rm = TRUE)) %>% 
+  ungroup()
+
+eparp
+
+```
+
