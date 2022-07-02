@@ -10,6 +10,7 @@ library(nflfastR)
 library(nflreadr)
 library(tidyverse)
 library(ggimage)
+library(ggrepel)
 
 options(scipen = 999)
 
@@ -23,7 +24,9 @@ pbp <- pbp[!is.na(pbp$down), ]
 
 runpass <- pbp %>% filter(play_type == "run" | play_type == "pass")
 
-remove(pbp) 
+remove(pbp)
+
+runpass <- runpass %>% filter(fumble_lost == 0)
 
 ave_run <- runpass %>% group_by(posteam, down) %>% 
   filter(play_type == "run") %>% 
@@ -79,10 +82,20 @@ avs %>% ggplot(aes(x = averun, y = avepass)) +
   geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
   geom_abline(slope = 1, intercept = 0) +
   facet_wrap(~ down)
+
+runpass %>% filter(down == 3) %>% 
+  ggplot(aes(yards_gained, group = play_type, color = play_type)) +
+  geom_boxplot() + facet_wrap(~ series_success)
 ```
 
 ```{r summary stats}
 runpass %>% group_by(play_type) %>% summarise(mean = mean(yards_gained), n = n()) #ave yds gained by play type
+
+#not including 4th down
+runpass %>% filter(down <= 3) %>% 
+  group_by(play_type) %>% 
+  summarise(mean = mean(yards_gained), n = n()) 
+
 
 #epa by play type
 eparp <- runpass %>% 
@@ -90,10 +103,42 @@ eparp <- runpass %>%
   summarise(mean_epa = mean(epa, na.rm = TRUE), 
             success = mean(series_success, na.rm = TRUE), 
             meanyds = mean(yards_gained, na.rm = TRUE),
-            meantogo = mean(ydstogo, na.rm = TRUE)) %>% 
+            meantogo = mean(ydstogo, na.rm = TRUE),
+            n = n()) %>% 
   ungroup()
 
 eparp
+
+
+#qbs on 3rd down passing
+qbs_3rd <- runpass %>% group_by(passer_player_name, posteam) %>% 
+  filter(down == 3 & passer_player_name != "NA") %>% 
+  summarise(mean_epa = mean(epa, na.rm = TRUE),
+            mean_ydstogo = mean(ydstogo, na.rm = TRUE),
+            mean_ydsgain = mean(yards_gained, na.rm = TRUE),
+            n = n()
+            ) %>% 
+  filter(n > 300) %>%
+  ungroup()
+
+qbs_3rd <- qbs_3rd %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+qbs_3rd %>% ggplot(aes(x = mean_ydstogo, y = mean_epa)) +
+  geom_image(aes(image = team_logo_wikipedia), size = 0.07 ) +
+  geom_hline(yintercept = -0.0420, color = "red", linetype = "dashed", alpha=0.5) +
+  geom_vline(xintercept = 7.67, color = "red", linetype = "dashed", alpha=0.5) +
+  labs(x = "Average Yards to Go",
+       y = "Average EPA, Passing",
+       title = "QB Performance on 3rd Down Passes",
+       subtitle = "2018 - 2021, min 300 plays",
+       caption = "@jmeerse   data: nflfastR") +
+  geom_label(x = qbs_3rd$mean_ydstogo[20] + .2, 
+             y = qbs_3rd$mean_epa[20],
+             size = 2.5,
+             label = qbs_3rd$passer_player_name[20],
+             )
+
+
 
 ```
 
