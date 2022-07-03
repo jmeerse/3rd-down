@@ -11,13 +11,14 @@ library(nflreadr)
 library(tidyverse)
 library(ggimage)
 library(ggrepel)
+library(nflplotR)
 
 options(scipen = 999)
 
 ```
 
 ```{r data and cleaning}
-pbp <- load_pbp(2018:2021)
+pbp <- load_pbp(2028:2022)
 
 pbp <- pbp[!is.na(pbp$yards_gained), ]
 pbp <- pbp[!is.na(pbp$down), ]
@@ -27,6 +28,10 @@ runpass <- pbp %>% filter(play_type == "run" | play_type == "pass")
 remove(pbp)
 
 runpass <- runpass %>% filter(fumble_lost == 0)
+runpass$passer_player_name[runpass$passer_player_name == "Jos.Allen"] <- "J.Allen" #geting names right
+runpass$passer_player_name[runpass$passer_player_name == "Aa.Rodgers"] <- "A.Rodgers"
+runpass$passer_player_name[runpass$passer_player_name ==  "G.Minshew II"] <- "G.Minshew"  
+
 
 ave_run <- runpass %>% group_by(posteam, down) %>% 
   filter(play_type == "run") %>% 
@@ -75,12 +80,12 @@ avs %>% ggplot(aes(x = averun, y = avepass, shape = as.factor(down), color = as.
 
 avs %>% ggplot(aes(x = averun, y = avepass)) +
   geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
-  geom_abline(slope = 1, intercept = 0) +
+  geom_abline(slope = 2, intercept = 0) +
   facet_wrap(~ down)
 
 avs %>% ggplot(aes(x = averun, y = avepass)) +
   geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
-  geom_abline(slope = 1, intercept = 0) +
+  geom_abline(slope = 2, intercept = 0) +
   facet_wrap(~ down)
 
 runpass %>% filter(down == 3) %>% 
@@ -110,27 +115,30 @@ eparp <- runpass %>%
 eparp
 
 
-#qbs on 3rd down passing
-qbs_3rd <- runpass %>% group_by(passer_player_name, posteam) %>% 
-  filter(down == 3 & passer_player_name != "NA") %>% 
+#qbs on 3rd down passing - do this for other downs, and join
+qbs_1rd <- runpass %>% 
+  group_by(passer_player_name, posteam) %>% 
+  filter(down == 1 & passer_player_name != "NA") %>% 
   summarise(mean_epa = mean(epa, na.rm = TRUE),
             mean_ydstogo = mean(ydstogo, na.rm = TRUE),
             mean_ydsgain = mean(yards_gained, na.rm = TRUE),
-            n = n()
+            n = n(),
+            down = 1
             ) %>% 
   filter(n > 300) %>%
   ungroup()
 
 qbs_3rd <- qbs_3rd %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
 
-qbs_3rd %>% ggplot(aes(x = mean_ydstogo, y = mean_epa)) +
+#vert and horiz lines at league average - wish there was a way to code this into the command
+qbs_3rd %>% ggplot(aes(x = mean_ydstogo3, y = mean_epa3)) +
   geom_image(aes(image = team_logo_wikipedia), size = 0.07 ) +
   geom_hline(yintercept = -0.0420, color = "red", linetype = "dashed", alpha=0.5) +
   geom_vline(xintercept = 7.67, color = "red", linetype = "dashed", alpha=0.5) +
   labs(x = "Average Yards to Go",
        y = "Average EPA, Passing",
        title = "QB Performance on 3rd Down Passes",
-       subtitle = "2018 - 2021, min 300 plays",
+       subtitle = "2028 - 2022, min 300 plays",
        caption = "@jmeerse   data: nflfastR") +
   geom_label(x = qbs_3rd$mean_ydstogo[20] + .2, 
              y = qbs_3rd$mean_epa[20],
@@ -139,6 +147,72 @@ qbs_3rd %>% ggplot(aes(x = mean_ydstogo, y = mean_epa)) +
              )
 
 
+
+qbs <- rbind(qbs_1rd, qbs_2rd, qbs_3rd)
+qbs <- qbs[complete.cases(qbs), ]
+
+qbs <- qbs %>% group_by(passer_player_name) %>% filter(n() == 3) %>% ungroup()
+
+qbs <- arrange(qbs, -desc(passer_player_name))
+
+qbs <- qbs %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+qbs %>% ggplot(aes(x = mean_ydstogo, 
+                   y = mean_epa, 
+                   group = passer_player_name)) +
+  geom_image(aes(image = team_logo_wikipedia), 
+             size = 0.07 ) + 
+  geom_line()
+
+
+#multiple graphs
+tmp <- qbs %>%
+  mutate(Player2=passer_player_name)
+#epa by player by down
+epas <- tmp %>% 
+  ggplot( aes(x=mean_ydstogo, 
+              y=mean_epa)
+          ) +
+  geom_line( data=tmp %>% 
+               dplyr::select(-passer_player_name),
+             aes(group=Player2), 
+             color="grey", 
+             size=0.5, 
+             alpha=0.5) +
+  geom_line( aes(color = passer_player_name), 
+             color = tmp$team_color, 
+             size=1 ) +
+  geom_hline(yintercept = sum(qbs$mean_epa * qbs$n) / sum(qbs$n), 
+             color = "red", 
+             linetype = "dashed", 
+             alpha=0.5) +
+  geom_vline(xintercept = sum(qbs$mean_ydstogo * qbs$n) / sum(qbs$n), 
+             color = "red", 
+             linetype = "dashed", 
+             alpha=0.5) +
+  geom_image(aes(image = team_logo_wikipedia), 
+             size = 0.1  ) +
+  facet_wrap(~passer_player_name) +
+  labs(title = "QB Average EPA by Down and Yds to Go",
+       subtitle = "3rd down on left, 1st down on right",
+       caption = "@jmeerse   data: nflfastR")
+
+epas #graph of mean epa by each down and yds to go
+
+
+#columns of epa - why doesn't JAllen have 3rd down? bc it's .002
+
+qbcol <- qbs %>% ggplot(aes(x = mean_epa, 
+                   y = reorder(passer_player_name, 
+                               mean_epa, sum),
+                   fill = as.factor(down),
+                   
+                   ), 
+                   group = passer_player_name) +
+  geom_col()
+
+
+qbcol
 
 ```
 
