@@ -11,7 +11,7 @@ library(nflreadr)
 library(tidyverse)
 library(ggimage)
 library(ggrepel)
-library(nflplotR)
+#library(nflplotR)
 
 options(scipen = 999)
 
@@ -116,14 +116,14 @@ eparp
 
 
 #qbs on 3rd down passing - do this for other downs, and join
-qbs_1rd <- runpass %>% 
+qbs_3rd <- runpass %>% 
   group_by(passer_player_name, posteam) %>% 
-  filter(down == 1 & passer_player_name != "NA") %>% 
+  filter(down == 3 & passer_player_name != "NA") %>% 
   summarise(mean_epa = mean(epa, na.rm = TRUE),
             mean_ydstogo = mean(ydstogo, na.rm = TRUE),
             mean_ydsgain = mean(yards_gained, na.rm = TRUE),
             n = n(),
-            down = 1
+            down = 3
             ) %>% 
   filter(n > 300) %>%
   ungroup()
@@ -214,5 +214,62 @@ qbcol <- qbs %>% ggplot(aes(x = mean_epa,
 
 qbcol
 
+```
+
+```{r success rate}
+home_team <- runpass %>% filter(home_team == posteam)
+away_team <- runpass %>% filter(away_team == posteam)
+
+htsr <- home_team %>% group_by(game_id, home_team, season) %>% 
+  summarise(success_rateh = mean(series_success),
+            win = if ((sum(result) > 0) )
+            {1}
+            else
+            {0}
+              ) %>% 
+  ungroup()
+
+atsr <- away_team %>% group_by(game_id, away_team) %>% 
+  summarise(success_ratea = mean(series_success),
+            win = if ((sum(result) < 0) )
+            {1}
+            else
+            {0}
+              ) %>% 
+  ungroup()
+
+ssr <- left_join(htsr, atsr, by = "game_id")
+
+ssr <- runpass %>% 
+  group_by(game_id, home_team, posteam, season) %>% 
+  summarise(
+    success_rate = mean(series_success),
+    win = if ((sum(result) > 0) )
+            {"home win"}
+            else
+            {"away win"}
+              ) %>% 
+  ungroup()
+
+away <- runpass %>% 
+  group_by(game_id, away_team, posteam) %>%
+  summarise(success_rate = mean(series_success)) %>% 
+  ungroup()
+
+ssr <- ssr %>% left_join(away, by = c("game_id", "posteam"))
+
+ssr <- subset(ssr, select = -c(success_rate.y))
+
+winner <- runpass %>% 
+  group_by(game_id) %>% 
+  summarise(tot = sum(result),
+    winner = if ((tot > 0) )
+            {home_team}
+            else
+            {away_team}
+              ) %>% 
+  ungroup()
+
+ssr <- ssr %>% left_join(winner, by = c("game_id"))
 ```
 
