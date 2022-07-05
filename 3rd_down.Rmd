@@ -271,5 +271,57 @@ winner <- runpass %>%
   ungroup()
 
 ssr <- ssr %>% left_join(winner, by = c("game_id"))
+
+
+ssr %>% ggplot(aes(success_ratea, win.y, group = win.y)) + 
+  geom_boxplot()
+
+ssr %>% group_by(win.y) %>% 
+  summarise(mean_success = mean(success_ratea, na.rm = TRUE)) %>% 
+  ungroup()
+
+#this worked sort of, but need "season" in atsr
+htsr$home_away = "home"
+atsr$home_away = "away"
+
+htsr <- rename(htsr, team = home_team) 
+htsr <- rename(htsr, succuss_rate = success_rateh)
+atsr <- rename(atsr, team = away_team) 
+atsr <- rename(atsr, succuss_rate = success_ratea)
+
+at <- ssr %>% select(game_id, away_team, season, success_ratea, win.y)
+
+at$home_away = "away"
+at <- rename(at, team = away_team) 
+at <- rename(at, succuss_rate = success_ratea)
+at <- rename(at, win = win.y)
+
+sr <- rbind(htsr, at)
+sr <- rename(sr, success_rate = succuss_rate)
+
+sr %>% ggplot(aes(x = success_rate, y = reorder(team, success_rate, median), group = team)) +
+  geom_boxplot()
+
+sr %>% group_by(team, win) %>% 
+  summarise(stats = mean(success_rate)) %>% 
+  ungroup()
+
+meansr <- sr %>% group_by(team, win) %>% 
+  summarise(stats = mean(success_rate)) %>% 
+  ungroup()
+
+msrw <- meansr %>% filter(win == 1)
+msrl <- meansr %>% filter(win == 0)
+
+msr <- left_join(msrw, msrl, by = "team" )
+msr <- rename(msr, srate_win = stats.x)
+
+msr <- left_join(msr, teams_colors_logos, by = c("team" = "team_abbr"))
+
+sratescat <- msr %>% ggplot(aes(srate_loss, srate_win)) + 
+  geom_image(aes(image = team_logo_wikipedia))
+
 ```
+
+
 
