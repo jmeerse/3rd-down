@@ -321,6 +321,46 @@ msr <- left_join(msr, teams_colors_logos, by = c("team" = "team_abbr"))
 sratescat <- msr %>% ggplot(aes(srate_loss, srate_win)) + 
   geom_image(aes(image = team_logo_wikipedia))
 
+sratescat
+
+#how are total wins and losses related to success rate
+sroverall <- sr %>% group_by(team, win) %>% 
+  summarise(games = n(), 
+            sr = mean(success_rate)) %>% ungroup()
+sroverall <- left_join(sroverall, teams_colors_logos, by = c("team" = "team_abbr"))
+
+sroverall %>% #filter(win == 1) %>% 
+  ggplot(aes(sr, games)) +
+  geom_image(aes(image = team_logo_wikipedia)) 
+#looks linear for wins but not for losses
+
+
+srw <- sr %>%  group_by(team, win) %>% 
+  summarise(games_won = n(), 
+            srw = mean(success_rate)) %>% filter(win == 1) %>% ungroup()
+
+
+seriesssrseg <- msr %>% 
+  mutate(name = fct_reorder(team, srate_win)) %>% 
+  ggplot(x = name, y = srate_win) + 
+  geom_segment(aes(x=name, xend=name, 
+                    y=srate_loss, yend=srate_win,
+                   color = name),
+               color = msr$team_color,
+               size = 2) +
+  geom_image(aes(image = team_logo_wikipedia, x = name, y = srate_win)) +
+  coord_flip() +
+  labs(y = "Success rate loss to win",
+       x = "",
+       title = "Series Success Rate 2018-2021",
+       subtitle = "(series produces 1st down or TD)",
+       caption = "@jmeerse    data = nfrfastR")
+
+seriesssrseg
+
+#let's look at yards to go and success rate next
+
+
 ```
 
 
