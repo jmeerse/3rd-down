@@ -354,13 +354,47 @@ seriesssrseg <- msr %>%
        x = "",
        title = "Series Success Rate 2018-2021",
        subtitle = "(series produces 1st down or TD)",
-       caption = "@jmeerse    data = nfrfastR")
+       caption = "@jmeerse    data: nflfastR")
 
 seriesssrseg
 
 #let's look at yards to go and success rate next
 
+#shortyardage - do for medium and long also?
+thirdsr <- runpass %>% filter(down == 3 & ydstogo <= 2) %>%
+  group_by(season, posteam) %>% 
+  summarise(f_rate = mean(first_down, na.rm = TRUE),
+            n = n(),
+            s_rate = mean(series_success, na.rm = TRUE)) %>% 
+  ungroup()
 
+thirdsr
+
+thirdsr <- left_join(thirdsr, teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+thirdsr %>% ggplot(aes(season, f_rate, 
+                       group = posteam)) + 
+  geom_line() +
+  facet_wrap(~ posteam)
+
+
+thirdsr2021 <- thirdsr %>% filter(season == 2021)
+
+thirdsr2021 <- thirdsr2021 %>% rename(f_rate21 = f_rate, n21 = n)
+
+srthird <- left_join(srthird, thirdsr2021, by = "posteam")
+
+srthird <- left_join(srthird, teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+
+rpl <- runpass %>% group_by(posteam, season) %>% 
+  filter(ydstogo > 6 & ydstogo <= 12) %>% 
+  summarise(srate = mean(series_success),
+            n = n(),
+            short = "long") %>% 
+  ungroup()
+
+rpsr <- bind_rows(rps, rpm, rpl)
 ```
 
 
