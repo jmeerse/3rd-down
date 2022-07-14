@@ -387,14 +387,46 @@ srthird <- left_join(srthird, thirdsr2021, by = "posteam")
 srthird <- left_join(srthird, teams_colors_logos, by = c("posteam" = "team_abbr"))
 
 
-rpl <- runpass %>% group_by(posteam, season) %>% 
-  filter(ydstogo > 6 & ydstogo <= 12) %>% 
+#looking at distance to go on 3rd down
+rps <- runpass %>% group_by(posteam, season) %>% 
+  filter(down == 3 & ydstogo > 0 & ydstogo <= 2) %>% 
   summarise(srate = mean(series_success),
             n = n(),
-            short = "long") %>% 
+            type = "short") %>% 
   ungroup()
 
 rpsr <- bind_rows(rps, rpm, rpl)
+rpsr <- left_join(rpsr, teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+
+rpsr %>% ggplot(aes(srate, type)) +
+  geom_point(aes(color = as.factor(season))) + 
+  facet_wrap(~ posteam)
+
+rpsr %>% ggplot(aes(srate, type, fill = season)) +
+  geom_boxplot() +
+  facet_wrap(~ posteam)
+
+#columns by team for 3rd down success rate by distance
+sr3l <- rpsr %>% filter(type == "long") %>% 
+  ggplot(aes(fill=type, 
+                    y=srate, 
+                    x=fct_reorder(posteam, srate, max))) + 
+  geom_bar(position="dodge", 
+             stat="identity") + 
+  coord_flip() #+
+  facet_wrap(~ type)
+
+sr3l
+ #from ncaa sports for ideas 
+  sports %>% 
+  mutate(sports = fct_reorder(sports, expenditure)) %>% 
+  ggplot(aes(x = expenditure, y = sports, fill = gender)) +
+  geom_boxplot(position = position_dodge(preserve = "single"),alpha = 0.5) +
+  scale_x_log10(labels = scales::dollar) + 
+  scale_fill_brewer(palette = "Dark2") +
+  theme(legend.position = "top") +
+  labs(y = NULL, color = NULL, x = "Expenditure per team")
 ```
 
 
