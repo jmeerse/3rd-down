@@ -408,17 +408,28 @@ rpsr %>% ggplot(aes(srate, type, fill = season)) +
   facet_wrap(~ posteam)
 
 #columns by team for 3rd down success rate by distance
-sr3l <- rpsr %>% filter(type == "long") %>% 
+sr3l <- rpsr %>% #filter(type == "long") %>% 
   ggplot(aes(fill=type, 
                     y=srate, 
                     x=fct_reorder(posteam, srate, max))) + 
-  geom_bar(position="dodge", 
-             stat="identity") + 
-  coord_flip() #+
+  geom_bar(width = 0.7,
+           position=position_dodge(preserve = "total"),
+           stat="identity") + 
+  coord_flip() +
   facet_wrap(~ type)
 
 sr3l
- #from ncaa sports for ideas 
+ 
+sr3 <- rpsr %>% 
+  ggplot(aes(fill=type, 
+                    y=srate, 
+                    x=fct_reorder(posteam, srate))) + 
+  geom_col() + 
+  coord_flip() 
+
+sr3
+
+#from ncaa sports for ideas 
   sports %>% 
   mutate(sports = fct_reorder(sports, expenditure)) %>% 
   ggplot(aes(x = expenditure, y = sports, fill = gender)) +
@@ -429,5 +440,29 @@ sr3l
   labs(y = NULL, color = NULL, x = "Expenditure per team")
 ```
 
+```{r win % and success rate}
 
+#did you not look at this yet?
 
+#this includes playoffs but oh well
+wsr <- sr %>% group_by(team, season) %>% 
+  summarise(wins = sum(win),
+            wpct = wins / n(),
+            srate = mean(success_rate),
+            srate_w = sum(success_rate*win) / wins
+            ) %>% 
+  ungroup()
+wsr <- left_join(wsr, teams_colors_logos, by = c("team" = "team_abbr")
+                 )
+
+wsrscatt <- wsr %>% ggplot(aes(x = srate, y = wpct)) +
+  geom_image(aes(image = team_logo_espn), size = 0.05) +
+  labs(title = "Win Pct vs Series Success Rate",
+       subtitle = "Success Rate = series produces 1st down or TD",
+       x = "Series Success Rate",
+       y = "Win Pct"
+       )
+
+wsrscatt
+
+```
