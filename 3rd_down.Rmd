@@ -78,31 +78,30 @@ avs %>% ggplot(aes(x = averun, y = avepass, shape = as.factor(down), color = as.
 
 
 
-avs %>% ggplot(aes(x = averun, y = avepass)) +
+avs %>% filter(down == 4) %>% 
+  ggplot(aes(x = averun, y = avepass)) +
   geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
-  geom_abline(slope = 2, intercept = 0) +
+  geom_abline(slope = 1, intercept = 0) #+
   facet_wrap(~ down)
 
-avs %>% ggplot(aes(x = averun, y = avepass)) +
-  geom_image(aes(image = team_logo_wikipedia), size = 0.05) +
-  geom_abline(slope = 2, intercept = 0) +
-  facet_wrap(~ down)
 
 runpass %>% filter(down == 3) %>% 
   ggplot(aes(yards_gained, group = play_type, color = play_type)) +
   geom_boxplot() + facet_wrap(~ series_success)
+
+
+runpass %>% ggplot(aes(x = ydstogo, 
+                       y = yards_gained, 
+                       shape = as.factor(down), 
+                       color = as.factor(down))) +
+  geom_point(alpha = 0.2) + 
+  geom_abline(slope = 1, 
+              intercept = 0)
 ```
 
 ```{r summary stats}
-runpass %>% group_by(play_type) %>% summarise(mean = mean(yards_gained), n = n()) #ave yds gained by play type
 
-#not including 4th down
-runpass %>% filter(down <= 3) %>% 
-  group_by(play_type) %>% 
-  summarise(mean = mean(yards_gained), n = n()) 
-
-
-#epa by play type
+#epa by play type 
 eparp <- runpass %>% 
   group_by(play_type, down) %>% 
   summarise(mean_epa = mean(epa, na.rm = TRUE), 
@@ -118,10 +117,10 @@ eparp
 #qbs on 3rd down passing - do this for other downs, and join
 qbs_3rd <- runpass %>% 
   group_by(passer_player_name, posteam) %>% 
-  filter(down == 3 & passer_player_name != "NA") %>% 
-  summarise(mean_epa = mean(epa, na.rm = TRUE),
-            mean_ydstogo = mean(ydstogo, na.rm = TRUE),
-            mean_ydsgain = mean(yards_gained, na.rm = TRUE),
+  filter(down == 3 & passer_player_name != "NA" & play_type == "pass") %>% 
+  summarise(mean_epa3 = mean(epa, na.rm = TRUE),
+            mean_ydstogo3 = mean(ydstogo, na.rm = TRUE),
+            mean_ydsgain3 = mean(yards_gained, na.rm = TRUE),
             n = n(),
             down = 3
             ) %>% 
@@ -131,31 +130,84 @@ qbs_3rd <- runpass %>%
 qbs_3rd <- qbs_3rd %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
 
 #vert and horiz lines at league average - wish there was a way to code this into the command
-qbs_3rd %>% ggplot(aes(x = mean_ydstogo3, y = mean_epa3)) +
-  geom_image(aes(image = team_logo_wikipedia), size = 0.07 ) +
+qbs_3rd %>% ggplot(aes(x = mean_ydstogo3, 
+                       y = mean_epa3)) +
+  geom_image(aes(image = team_logo_espn), size = 0.07 ) +
   geom_hline(yintercept = -0.0420, color = "red", linetype = "dashed", alpha=0.5) +
   geom_vline(xintercept = 7.67, color = "red", linetype = "dashed", alpha=0.5) +
   labs(x = "Average Yards to Go",
        y = "Average EPA, Passing",
        title = "QB Performance on 3rd Down Passes",
-       subtitle = "2028 - 2022, min 300 plays",
+       subtitle = "2018 - 2022, min 300 plays",
        caption = "@jmeerse   data: nflfastR") +
-  geom_label(x = qbs_3rd$mean_ydstogo[20] + .2, 
-             y = qbs_3rd$mean_epa[20],
+  geom_label(x = qbs_3rd$mean_ydstogo3[20] + .2, 
+             y = qbs_3rd$mean_epa3[20],
              size = 2.5,
              label = qbs_3rd$passer_player_name[20],
              )
 
+#what about just 2020 and 2021?
+qbs_3rd2021 <- runpass %>% 
+  filter(season > 2019 & play_type == "pass") %>%  
+  group_by(passer_player_name, posteam) %>% 
+  filter(down == 3 & passer_player_name != "NA") %>% 
+  summarise(mean_epa = mean(epa, na.rm = TRUE),
+            mean_ydstogo = mean(ydstogo, na.rm = TRUE),
+            mean_ydsgain = mean(yards_gained, na.rm = TRUE),
+            n = n(),
+            down = 3
+            ) %>% 
+  filter(n > 150) %>%
+  ungroup()
+
+qbs_3rd2021 <- qbs_3rd2021 %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+
+#2020 and 2021 averages for reference lines
+runpass %>% filter(season > 2019, 
+                   down == 3, 
+                   play_type == "pass") %>%
+  summarise(mean_ydstogo = mean(ydstogo),
+            mean_epa = mean(epa))
+
+#vert and horiz lines at league average - wish there was a way to code this into the command
+qbs_3rd2021 %>% ggplot(aes(x = mean_ydstogo3, 
+                       y = mean_epa3)) +
+  geom_image(aes(image = team_logo_espn), size = 0.05 ) +
+  geom_hline(yintercept = -0.0390, color = "red", linetype = "dashed", alpha=0.5) +
+  geom_vline(xintercept = 7.55, color = "red", linetype = "dashed", alpha=0.5) +
+  labs(x = "Average Yards to Go",
+       y = "Average EPA",
+       title = "QB EPA on 3rd Down Passes",
+       subtitle = "2020 - 2021, min 150 plays",
+       caption = "@jmeerse   data: nflfastR") +
+  geom_text_repel(
+    label=qbs_3rd2021$passer_player_name, 
+    size = 2,
+    ) +
+  theme_light()
+
+ggsave("QB3rd.png", width = 6, height = 4, units = "in") #keeps text relatively the same, as opposed to export
 
 
 qbs <- rbind(qbs_1rd, qbs_2rd, qbs_3rd)
 qbs <- qbs[complete.cases(qbs), ]
 
+qbs2021 <- rbind(qbs_1rd2021, qbs_2rd2021, qbs_3rd2021)
+qbs2021 <- qbs2021[complete.cases(qbs2021), ]
+
+
 qbs <- qbs %>% group_by(passer_player_name) %>% filter(n() == 3) %>% ungroup()
 
-qbs <- arrange(qbs, -desc(passer_player_name))
+qbs2021 <- qbs2021 %>% group_by(passer_player_name) %>% filter(n() == 3) %>% ungroup()
+
+
+qbs2021 <- arrange(qbs2021, -desc(passer_player_name))
 
 qbs <- qbs %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
+
+qbs2021 <- qbs2021 %>% left_join(teams_colors_logos, by = c("posteam" = "team_abbr"))
+
 
 qbs %>% ggplot(aes(x = mean_ydstogo, 
                    y = mean_epa, 
@@ -164,56 +216,70 @@ qbs %>% ggplot(aes(x = mean_ydstogo,
              size = 0.07 ) + 
   geom_line()
 
+qbs2021 %>% ggplot(aes(x = mean_ydstogo, 
+                   y = mean_epa, 
+                   group = passer_player_name)) +
+  geom_image(aes(image = team_logo_wikipedia), 
+             size = 0.07 ) + 
+  geom_line()
 
-#multiple graphs
-tmp <- qbs %>%
+
+#multiple graphs - remove 2021 to see 2018+
+tmp2021 <- qbs2021 %>%
   mutate(Player2=passer_player_name)
 #epa by player by down
-epas <- tmp %>% 
+epas2021 <- tmp2021 %>% 
   ggplot( aes(x=mean_ydstogo, 
               y=mean_epa)
           ) +
-  geom_line( data=tmp %>% 
+  geom_line( data=tmp2021 %>% 
                dplyr::select(-passer_player_name),
              aes(group=Player2), 
              color="grey", 
              size=0.5, 
              alpha=0.5) +
   geom_line( aes(color = passer_player_name), 
-             color = tmp$team_color, 
+             color = tmp2021$team_color, 
              size=1 ) +
-  geom_hline(yintercept = sum(qbs$mean_epa * qbs$n) / sum(qbs$n), 
+  geom_hline(yintercept = 0, 
              color = "red", 
              linetype = "dashed", 
              alpha=0.5) +
-  geom_vline(xintercept = sum(qbs$mean_ydstogo * qbs$n) / sum(qbs$n), 
-             color = "red", 
-             linetype = "dashed", 
-             alpha=0.5) +
-  geom_image(aes(image = team_logo_wikipedia), 
+  geom_image(aes(image = team_logo_espn), 
              size = 0.1  ) +
   facet_wrap(~passer_player_name) +
-  labs(title = "QB Average EPA by Down and Yds to Go",
+  labs(title = "QB Average EPA by Down and Yds to Go 2020 - 2021",
        subtitle = "3rd down on left, 1st down on right",
        caption = "@jmeerse   data: nflfastR")
 
-epas #graph of mean epa by each down and yds to go
+epas2021 #graph of mean epa by each down and yds to go
+ggsave("QB by down and yds to go.png", width = 6, height = 4, units = "in")
 
 
-#columns of epa - why doesn't JAllen have 3rd down? bc it's .002
 
-qbcol <- qbs %>% ggplot(aes(x = mean_epa, 
-                   y = reorder(passer_player_name, 
-                               mean_epa, sum),
-                   fill = as.factor(down),
-                   
-                   ), 
-                   group = passer_player_name) +
-  geom_col()
+qbcol2021 <- qbs2021 %>% 
+  ggplot(aes(x = mean_epa, 
+             y = reorder(passer_player_name,
+                         mean_epa, sum),
+                   fill = as.factor(down)
+             ), 
+                   group = passer_player_name
+         ) + 
+  guides(fill=guide_legend(title="Down",
+         keywidth = .5,
+         keyheight = .5)) +
+  geom_col() +
+  geom_image(aes(image = team_logo_espn),
+             position = "stack") +
+  labs(title = "EPA by Down, 2020-2021 Seasons",
+       x = "EPA",
+       y = "",
+       caption = "@jmeerse  data: nflfastR") 
 
 
-qbcol
+qbcol2021
 
+ggsave("QB EPA by Down Col.png", width = 6, height = 4, units = "in")
 ```
 
 ```{r success rate}
